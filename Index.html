@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N Audio Converter</title>
+<style>
+body { font-family: sans-serif; text-align: center; padding: 20px; }
+.upload { border: 2px dashed #888; padding: 40px; margin: 20px auto; width: 80%; }
+select, input, button { margin: 10px; padding: 5px; }
+</style>
+</head>
+<body>
+<h1>🎵 N Audio Converter</h1>
+<p>BCSTM / BRSTM / BCWAV / STRM → WAV / MP3 / AAC</p>
+
+<div class="upload">
+<input type="file" id="fileInput">
+</div>
+
+<div>
+<label>出力形式: </label>
+<select id="format">
+<option value="wav">WAV</option>
+<option value="mp3">MP3</option>
+<option value="aac">AAC</option>
+</select>
+</div>
+
+<div>
+<label>ビットレート: </label>
+<select id="bitrate">
+<option>16</option><option>32</option><option>64</option>
+<option>128</option><option selected>192</option>
+<option>256</option><option>320</option>
+</select> kbps
+</div>
+
+<div>
+<label>サンプリング周波数: </label>
+<select id="samplerate">
+<option>32000</option><option>44100</option><option selected>48000</option>
+</select> Hz
+</div>
+
+<button id="convertBtn">変換</button>
+<div id="status"></div>
+
+<!-- ffmpeg.wasm CDN -->
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.4/dist/ffmpeg.min.js"></script>
+<!-- vgmstream WASM CDN -->
+<script src="https://cdn.jsdelivr.net/gh/jotego/vgmstream-wasm/vgmstream_cli.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
