@@ -2,23 +2,33 @@ const { createFFmpeg, fetchFile } = FFmpeg;
 const ffmpeg = createFFmpeg({ log: true });
 let vgmstreamModule;
 
-async function loadVgmstream() {
+const statusEl = document.getElementById("status");
+const convertBtn = document.getElementById("convertBtn");
+convertBtn.disabled = true; // 読み込み完了前はボタン無効
+
+async function loadModules() {
+  statusEl.innerText = "vgmstream 読み込み中...";
   vgmstreamModule = await Vgmstream({
     locateFile: () => "https://cdn.jsdelivr.net/gh/jotego/vgmstream-wasm/vgmstream_cli.wasm"
   });
-  console.log("vgmstream loaded");
+  statusEl.innerText = "ffmpeg 読み込み中...";
+  if (!ffmpeg.isLoaded()) await ffmpeg.load();
+  statusEl.innerText = "準備完了 ✅";
+  convertBtn.disabled = false;
 }
-loadVgmstream();
+
+loadModules();
 
 async function vgmstreamDecode(file) {
   const arrayBuffer = await file.arrayBuffer();
   const filename = file.name;
   vgmstreamModule.FS_writeFile(filename, new Uint8Array(arrayBuffer));
-  vgmstreamModule.callMain(['-o', 'output.wav', filename]);
+  statusEl.innerText = "ゲーム音声を WAV に変換中...";
+  await vgmstreamModule.callMainAsync(['-o', 'output.wav', filename]);
   return vgmstreamModule.FS_readFile('output.wav');
 }
 
-document.getElementById("convertBtn").addEventListener("click", async () => {
+convertBtn.addEventListener("click", async () => {
   const fileInput = document.getElementById("fileInput");
   if (!fileInput.files.length) { alert("ファイルを選択してください"); return; }
 
@@ -27,23 +37,35 @@ document.getElementById("convertBtn").addEventListener("click", async () => {
   const bitrate = document.getElementById("bitrate").value;
   const samplerate = document.getElementById("samplerate").value;
 
-  document.getElementById("status").innerText = "変換中...";
+  convertBtn.disabled = true;
+  statusEl.innerText = "変換処理中...";
 
-  // ゲーム音声 → WAV
-  const wavData = await vgmstreamDecode(file);
+  try {
+    // ゲーム音声 → WAV
+    const wavData = await vgmstreamDecode(file);
 
-  // WAV → 選択形式
-  if (!ffmpeg.isLoaded()) await ffmpeg.load();
-  ffmpeg.FS("writeFile", "input.wav", wavData);
-  await ffmpeg.run("-i", "input.wav", "-b:a", bitrate+"k", "-ar", samplerate, `output.${outFormat}`);
+    // WAV → 選択形式
+    statusEl.innerText = "最終変換中 (ffmpeg)...";
+    ffmpeg.FS("writeFile", "input.wav", wavData);
+    ffmpeg.setProgress(({ ratio }) => {
+      statusEl.innerText = `最終変換中 (ffmpeg) ${Math.round(ratio * 100)}%`;
+    });
 
-  const data = ffmpeg.FS("readFile", `output.${outFormat}`);
-  const blob = new Blob([data.buffer], { type: `audio/${outFormat}` });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `output.${outFormat}`;
-  a.click();
+    await ffmpeg.run("-i", "input.wav", "-b:a", bitrate+"k", "-ar", samplerate, `output.${outFormat}`);
+    const data = ffmpeg.FS("readFile", `output.${outFormat}`);
+    const blob = new Blob([data.buffer], { type: `audio/${outFormat}` });
+    const url = URL.createObjectURL(blob);
 
-  document.getElementById("status").innerText = "変換完了！";
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `output.${outFormat}`;
+    a.click();
+
+    statusEl.innerText = "変換完了 ✅";
+  } catch (e) {
+    console.error(e);
+    statusEl.innerText = "変換中にエラーが発生しました ❌";
+  } finally {
+    convertBtn.disabled = false;
+  }
 });
